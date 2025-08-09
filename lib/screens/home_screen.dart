@@ -5,6 +5,8 @@ import '../widgets/movie_card.dart';
 import '../widgets/custom_text_fields.dart';
 import '../widgets/filter_chips.dart';
 import '../widgets/loading_indicators.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubits/movie_cubit.dart';
 import '../widgets/error_widgets.dart';
 import 'movie_detail_screen.dart';
 import 'filter_screen.dart';
@@ -18,80 +20,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
-  bool _isLoading = false;
   bool _isGridView = true;
   String? _selectedGenre;
   double? _selectedRating;
   int? _selectedYear;
 
-  // Mock data for demonstration
-  final List<Map<String, dynamic>> _mockMovies = [
-    {
-      'id': 1,
-      'title': 'The Shawshank Redemption',
-      'posterUrl': 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',
-      'rating': 9.3,
-      'genres': ['Drama', 'Crime'],
-      'isAdult': false,
-    },
-    {
-      'id': 2,
-      'title': 'The Godfather',
-      'posterUrl': 'https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg',
-      'rating': 9.2,
-      'genres': ['Crime', 'Drama'],
-      'isAdult': false,
-    },
-    {
-      'id': 3,
-      'title': 'Pulp Fiction',
-      'posterUrl': 'https://image.tmdb.org/t/p/w500/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
-      'rating': 8.9,
-      'genres': ['Crime', 'Drama'],
-      'isAdult': true,
-    },
-    {
-      'id': 4,
-      'title': 'The Dark Knight',
-      'posterUrl': 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
-      'rating': 9.0,
-      'genres': ['Action', 'Crime', 'Drama'],
-      'isAdult': false,
-    },
-    {
-      'id': 5,
-      'title': 'Fight Club',
-      'posterUrl': 'https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
-      'rating': 8.8,
-      'genres': ['Drama'],
-      'isAdult': true,
-    },
-    {
-      'id': 6,
-      'title': 'Inception',
-      'posterUrl': 'https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
-      'rating': 8.8,
-      'genres': ['Action', 'Adventure', 'Sci-Fi'],
-      'isAdult': false,
-    },
-  ];
-
-  final List<String> _genres = [
-    'Action',
-    'Adventure',
-    'Comedy',
-    'Crime',
-    'Drama',
-    'Horror',
-    'Romance',
-    'Sci-Fi',
-    'Thriller',
-  ];
-
   @override
   void initState() {
     super.initState();
-    _loadMovies();
+    // Ensure movies are loaded when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final movieCubit = context.read<MovieCubit>();
+      if (movieCubit.state.movies.isEmpty && movieCubit.state.status == MovieStatus.initial) {
+        movieCubit.fetchMovies();
+      }
+    });
   }
 
   @override
@@ -100,47 +43,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _loadMovies() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  List<Map<String, dynamic>> get _filteredMovies {
-    return _mockMovies.where((movie) {
-      // Search filter
-      if (_searchController.text.isNotEmpty) {
-        if (!movie['title'].toLowerCase().contains(_searchController.text.toLowerCase())) {
-          return false;
-        }
-      }
-
-      // Genre filter
-      if (_selectedGenre != null) {
-        if (!movie['genres'].contains(_selectedGenre)) {
-          return false;
-        }
-      }
-
-      // Rating filter
-      if (_selectedRating != null) {
-        if (movie['rating'] < _selectedRating!) {
-          return false;
-        }
-      }
-
-      // Year filter (mock - would be real year in actual implementation)
-      // For now, we'll skip year filtering
-
-      return true;
-    }).toList();
+  List<Map<String, dynamic>> _getFilteredMovies(List<Map<String, dynamic>> movies) {
+    // All filtering is handled server-side by the cubit (search, genre, rating, year).
+    // Return movies as-is to avoid double-filtering while typing.
+    return movies;
   }
 
   void _onMovieTap(Map<String, dynamic> movie) {
@@ -164,6 +70,12 @@ class _HomeScreenState extends State<HomeScreen> {
               _selectedRating = rating;
               _selectedYear = year;
             });
+            // Apply filters to cubit
+            context.read<MovieCubit>().applyFilters(
+              genre: genre,
+              rating: rating,
+              year: year,
+            );
           },
         ),
       ),
@@ -177,6 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedYear = null;
       _searchController.clear();
     });
+    // Clear filters in cubit
+    final cubit = context.read<MovieCubit>();
+    cubit.clearFilters();
+  }
+
+  Future<void> _onRefresh() async {
+    await context.read<MovieCubit>().refreshMovies();
   }
 
   @override
@@ -205,137 +124,271 @@ class _HomeScreenState extends State<HomeScreen> {
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(16),
-            child: SearchTextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {});
-              },
-              onClear: () {
-                setState(() {
-                  _searchController.clear();
-                });
-              },
+            child: Row(
+              children: [
+                Expanded(
+                  child: SearchTextField(
+                    controller: _searchController,
+                    // No live filtering while typing; wait for submit (Enter) instead
+                    onChanged: null,
+                    onClear: () {
+                      setState(() {
+                        _searchController.clear();
+                      });
+                      context.read<MovieCubit>().search('');
+                    },
+                    onSubmitted: (value) => context.read<MovieCubit>().search(value),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => context.read<MovieCubit>().search(_searchController.text),
+                  icon: const Icon(Icons.search),
+                  label: const Text('Search'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ],
             ),
           ),
 
           // Active Filters
-          if (_selectedGenre != null || _selectedRating != null || _selectedYear != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Active filters: ',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      children: [
-                        if (_selectedGenre != null)
-                          Chip(
-                            label: Text(_selectedGenre!),
-                            onDeleted: () {
-                              setState(() {
-                                _selectedGenre = null;
-                              });
-                            },
-                          ),
-                        if (_selectedRating != null)
-                          Chip(
-                            label: Text('Rating ≥ ${_selectedRating!.toStringAsFixed(1)}'),
-                            onDeleted: () {
-                              setState(() {
-                                _selectedRating = null;
-                              });
-                            },
-                          ),
-                        if (_selectedYear != null)
-                          Chip(
-                            label: Text(_selectedYear.toString()),
-                            onDeleted: () {
-                              setState(() {
-                                _selectedYear = null;
-                              });
-                            },
-                          ),
-                      ],
+          BlocBuilder<MovieCubit, MovieState>(
+            buildWhen: (previous, current) => 
+              previous.selectedGenre != current.selectedGenre ||
+              previous.selectedRating != current.selectedRating ||
+              previous.selectedYear != current.selectedYear ||
+              previous.searchQuery != current.searchQuery,
+            builder: (context, state) {
+              final hasFilters = state.selectedGenre != null || 
+                               state.selectedRating != null || 
+                               state.selectedYear != null ||
+                               (state.searchQuery ?? '').isNotEmpty;
+                               
+              if (!hasFilters) return const SizedBox.shrink();
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Active filters: ',
+                      style: AppTextStyles.bodySmall,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _clearFilters,
-                    child: Text(
-                      'Clear All',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.primary,
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          if (state.selectedGenre != null)
+                            Chip(
+                              label: Text(state.selectedGenre!),
+                              onDeleted: () {
+                                setState(() {
+                                  _selectedGenre = null;
+                                });
+                                context.read<MovieCubit>().clearGenreFilter();
+                              },
+                            ),
+                          if (state.selectedRating != null)
+                            Chip(
+                              label: Text('Rating ≥ ${state.selectedRating!.toStringAsFixed(1)}'),
+                              onDeleted: () {
+                                setState(() {
+                                  _selectedRating = null;
+                                });
+                                context.read<MovieCubit>().clearRatingFilter();
+                              },
+                            ),
+                          if (state.selectedYear != null)
+                            Chip(
+                              label: Text(state.selectedYear.toString()),
+                              onDeleted: () {
+                                setState(() {
+                                  _selectedYear = null;
+                                });
+                                context.read<MovieCubit>().clearYearFilter();
+                              },
+                            ),
+                           if ((state.searchQuery ?? '').isNotEmpty)
+                            Chip(
+                               label: Text('Search: ${state.searchQuery}'),
+                              onDeleted: () {
+                                setState(() {
+                                  _searchController.clear();
+                                });
+                                context.read<MovieCubit>().search('');
+                              },
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    TextButton(
+                      onPressed: () {
+                        _clearFilters();
+                        context.read<MovieCubit>().search('');
+                      },
+                      child: Text(
+                        'Clear All',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
 
           // Movie List
           Expanded(
-            child: _isLoading
-                ? const MovieListShimmer()
-                : _filteredMovies.isEmpty
-                    ? NoMoviesFoundWidget(onRefresh: _loadMovies)
-                    : _isGridView
-                        ? _buildGridView()
-                        : _buildListView(),
+            child: BlocBuilder<MovieCubit, MovieState>(
+              builder: (context, state) {
+                // Loading state for initial load
+                if (state.status == MovieStatus.loading && state.movies.isEmpty) {
+                  return const MovieListShimmer();
+                }
+
+                // Error state
+                if (state.status == MovieStatus.failure && state.movies.isEmpty) {
+                  return ErrorMessage(
+                    message: state.errorMessage ?? 'Failed to load movies. Check your TMDB key or network.',
+                    actionText: 'Retry',
+                    onActionPressed: () => context.read<MovieCubit>().fetchMovies(),
+                  );
+                }
+
+                // Empty state
+                if (state.movies.isEmpty) {
+                  return NoMoviesFoundWidget(
+                    onRefresh: () => context.read<MovieCubit>().fetchMovies(),
+                  );
+                }
+
+                // Filter movies based on local filters (search, etc.)
+                final filteredMovies = _getFilteredMovies(state.movies);
+
+                if (filteredMovies.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: AppColors.textLight,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No movies found matching your criteria',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textLight,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _clearFilters,
+                          child: const Text('Clear Filters'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return _isGridView 
+                  ? _buildGridView(filteredMovies, state) 
+                  : _buildListView(filteredMovies, state);
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGridView() {
-    return PullToRefreshIndicator(
-      onRefresh: _loadMovies,
-      child: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.6,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+  Widget _buildGridView(List<Map<String, dynamic>> movies, MovieState state) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (state.canLoadMore && !state.isLoadingMore) {
+          final metrics = notification.metrics;
+          if (metrics.pixels >= metrics.maxScrollExtent - 200) {
+            context.read<MovieCubit>().fetchNextPage();
+          }
+        }
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.6,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: movies.length + (state.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == movies.length) {
+              // Show loading placeholder as a grid item while fetching next page
+              return const MovieCardLoading();
+            }
+
+            final movie = movies[index];
+            return MovieCard.fromTmdbData(
+              movieData: movie,
+              onTap: () => _onMovieTap(movie),
+              heroTag: 'grid_movie_${movie['id']}',
+            );
+          },
         ),
-        itemCount: _filteredMovies.length,
-        itemBuilder: (context, index) {
-          final movie = _filteredMovies[index];
-          return MovieCard(
-            title: movie['title'],
-            posterUrl: movie['posterUrl'],
-            rating: movie['rating'].toDouble(),
-            genres: List<String>.from(movie['genres']),
-            isAdult: movie['isAdult'],
-            heroTag: 'movie-${movie['id']}',
-            onTap: () => _onMovieTap(movie),
-          );
-        },
       ),
     );
   }
 
-  Widget _buildListView() {
-    return PullToRefreshIndicator(
-      onRefresh: _loadMovies,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _filteredMovies.length,
-        itemBuilder: (context, index) {
-          final movie = _filteredMovies[index];
-          return MovieCardHorizontal(
-            title: movie['title'],
-            posterUrl: movie['posterUrl'],
-            rating: movie['rating'].toDouble(),
-            genres: List<String>.from(movie['genres']),
-            isAdult: movie['isAdult'],
-            onTap: () => _onMovieTap(movie),
-          );
-        },
+  Widget _buildListView(List<Map<String, dynamic>> movies, MovieState state) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (state.canLoadMore && !state.isLoadingMore) {
+          final metrics = notification.metrics;
+          if (metrics.pixels >= metrics.maxScrollExtent - 200) {
+            context.read<MovieCubit>().fetchNextPage();
+          }
+        }
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: movies.length + (state.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == movies.length) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: const CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                ),
+              );
+            }
+
+            final movie = movies[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: MovieCardHorizontal.fromTmdbData(
+                movieData: movie,
+                onTap: () => _onMovieTap(movie),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
-} 
+}

@@ -69,7 +69,7 @@ class GenreFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),r
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           FilterChip(

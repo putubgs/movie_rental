@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/dio_api_client.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../constants/app_colors.dart';
 import '../constants/text_styles.dart';
@@ -16,6 +19,18 @@ class MovieDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String title = (movie['title'] ?? movie['name'] ?? '').toString();
+    final String posterUrl = (movie['posterUrl'] as String?) ??
+        (movie['poster_path'] != null ? 'https://image.tmdb.org/t/p/w500${movie['poster_path']}' : '');
+    final double rating = ((movie['rating'] ?? movie['vote_average']) as num?)?.toDouble() ?? 0.0;
+    final bool isAdult = (movie['isAdult'] as bool?) ?? (movie['adult'] as bool?) ?? false;
+    final List<String> genres = _extractGenres(movie);
+    final String overview = (movie['overview'] as String?)?.trim() ?? '';
+    final String releaseDate = (movie['release_date'] as String?)?.trim() ?? '';
+    final String releaseYear = releaseDate.isNotEmpty && releaseDate.length >= 4 ? releaseDate.substring(0, 4) : '';
+    final int? runtime = (movie['runtime'] is num) ? (movie['runtime'] as num).toInt() : null; // present only on detail payload
+    final String? originalLanguage = (movie['original_language'] as String?)?.toUpperCase();
+    final int? movieId = (movie['id'] as num?)?.toInt();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -27,27 +42,55 @@ class MovieDetailScreen extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Hero(
-                    tag: 'movie-${movie['id']}',
-                    child: CachedNetworkImage(
-                      imageUrl: movie['posterUrl'],
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppColors.background,
-                        child: const Center(
-                          child: CircularProgressIndicator(),
+                  posterUrl.isEmpty
+                      ? Container(color: AppColors.background)
+                      : Hero(
+                          tag: movie['id'] != null ? 'movie-${movie['id']}' : posterUrl,
+                          child: CachedNetworkImage(
+                            imageUrl: posterUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: AppColors.background,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.background,
+                              child: const Icon(
+                                Icons.movie,
+                                size: 100,
+                                color: AppColors.textLight,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: AppColors.background,
-                        child: const Icon(
-                          Icons.movie,
-                          size: 100,
-                          color: AppColors.textLight,
+                  // Censor blur overlay for adult titles
+                  if (isAdult)
+                    Positioned.fill(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                        child: Container(
+                          color: Colors.black.withOpacity(0.25),
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              '18+ Sensitive',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   
                   Container(
                     decoration: BoxDecoration(
@@ -62,7 +105,7 @@ class MovieDetailScreen extends StatelessWidget {
                     ),
                   ),
                   
-                  if (movie['isAdult'])
+                  if (isAdult)
                     Positioned(
                       top: 60,
                       right: 16,
@@ -76,7 +119,7 @@ class MovieDetailScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          '18+',
+                          'Adult',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -103,17 +146,17 @@ class MovieDetailScreen extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          movie['title'],
-                          style: AppTextStyles.h2,
-                        ),
-                      ),
+                       Expanded(
+                         child: Text(
+                           title,
+                           style: AppTextStyles.h2,
+                         ),
+                       ),
                       const SizedBox(width: 16),
                       Column(
                         children: [
                           RatingBarIndicator(
-                            rating: movie['rating'] / 2, // Convert 10-scale to 5-scale
+                            rating: (rating / 2).clamp(0, 5), // Convert 10-scale to 5-scale
                             itemBuilder: (context, index) => const Icon(
                               Icons.star,
                               color: AppColors.rating,
@@ -123,7 +166,7 @@ class MovieDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${movie['rating']}/10',
+                            '${rating.toStringAsFixed(1)}/10',
                             style: AppTextStyles.movieRating,
                           ),
                         ],
@@ -133,9 +176,9 @@ class MovieDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  Wrap(
+                   Wrap(
                     spacing: 8,
-                    children: movie['genres'].map<Widget>((genre) {
+                    children: genres.map<Widget>((genre) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -149,7 +192,7 @@ class MovieDetailScreen extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          genre,
+                          genre.toString(),
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w500,
@@ -166,14 +209,31 @@ class MovieDetailScreen extends StatelessWidget {
                     style: AppTextStyles.h3,
                   ),
                   const SizedBox(height: 8),
-                  _Synopsis(text: _getSynopsis(movie['title'])),
+                  SynopsisText(text: overview.isNotEmpty ? overview : 'No overview available.'),
 
                   const SizedBox(height: 32),
 
-                  _buildDetailRow('Release Year', '2023'),
-                  _buildDetailRow('Duration', '2h 15m'),
-                  _buildDetailRow('Director', 'Christopher Nolan'),
-                  _buildDetailRow('Cast', 'Leonardo DiCaprio, Joseph Gordon-Levitt'),
+                  if (releaseYear.isNotEmpty)
+                    _buildDetailRow('Release Year', releaseYear),
+                  if (runtime != null && runtime > 0)
+                    _buildDetailRow('Duration', _formatRuntime(runtime)),
+                  if (originalLanguage != null && originalLanguage.isNotEmpty)
+                    _buildDetailRow('Language', originalLanguage),
+                  // Cast (fetched on demand from /movie/{id}/credits)
+                  if (movieId != null)
+                    FutureBuilder<List<String>>(
+                      future: _fetchTopCast(movieId),
+                      builder: (context, snapshot) {
+                        final cast = snapshot.data ?? const <String>[];
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return _buildDetailRow('Cast', 'Loading…');
+                        }
+                        if (cast.isEmpty) {
+                          return _buildDetailRow('Cast', 'N/A');
+                        }
+                        return _buildDetailRow('Cast', cast.join(', '));
+                      },
+                    ),
 
                   const SizedBox(height: 32),
 
@@ -196,6 +256,71 @@ class MovieDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<String> _extractGenres(Map<String, dynamic> movie) {
+    // If full genre objects present: [{'id':..,'name':..}, ...]
+    if (movie['genres'] is List) {
+      final List list = movie['genres'] as List;
+      return list
+          .map((e) => e is Map && e['name'] != null ? e['name'].toString() : null)
+          .whereType<String>()
+          .take(5)
+          .toList();
+    }
+    // If only genre_ids present, reuse the short mapping used in MovieCard
+    if (movie['genre_ids'] is List) {
+      final ids = (movie['genre_ids'] as List).whereType<int>();
+      const genreMap = {
+        28: 'Action',
+        12: 'Adventure',
+        16: 'Animation',
+        35: 'Comedy',
+        80: 'Crime',
+        99: 'Documentary',
+        18: 'Drama',
+        10751: 'Family',
+        14: 'Fantasy',
+        36: 'History',
+        27: 'Horror',
+        10402: 'Music',
+        9648: 'Mystery',
+        10749: 'Romance',
+        878: 'Sci-Fi',
+        10770: 'TV Movie',
+        53: 'Thriller',
+        10752: 'War',
+        37: 'Western',
+      };
+      return ids.where(genreMap.containsKey).map((id) => genreMap[id]!).take(5).toList();
+    }
+    return const [];
+  }
+
+  String _formatRuntime(int minutes) {
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (hours > 0 && mins > 0) return '${hours}h ${mins}m';
+    if (hours > 0) return '${hours}h';
+    return '${mins}m';
+  }
+
+  Future<List<String>> _fetchTopCast(int movieId) async {
+    try {
+      final dio = DioApiClient.instance.dio;
+      final Response res = await dio.get('movie/$movieId/credits');
+      final data = res.data;
+      if (data is Map && data['cast'] is List) {
+        final List cast = data['cast'] as List;
+        return cast
+            .whereType<Map>()
+            .map((m) => m['name'])
+            .whereType<String>()
+            .take(5)
+            .toList();
+      }
+    } catch (_) {}
+    return const <String>[];
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -223,69 +348,23 @@ class MovieDetailScreen extends StatelessWidget {
   }
 
   String _getSynopsis(String title) {
-    switch (title) {
-      case 'The Shawshank Redemption':
-        return 'Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.';
-      case 'The Godfather':
-        return 'The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.';
-      case 'Pulp Fiction':
-        return 'The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.';
-      case 'The Dark Knight':
-        return 'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.';
-      case 'Fight Club':
-        return 'An insomniac office worker and a devil-may-care soapmaker form an underground fight club that evolves into something much, much more.';
-      case 'Inception':
-        return 'A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.';
-      default:
-        return 'A compelling story that explores themes of redemption, friendship, and the human condition. This film has captivated audiences worldwide with its powerful narrative and outstanding performances.';
-    }
+    // Deprecated dummy synopsis; kept as fallback only
+    return 'No overview available.';
   }
 } 
 
-class _Synopsis extends StatefulWidget {
+class SynopsisText extends StatelessWidget {
   final String text;
-  const _Synopsis({required this.text});
-
-  @override
-  State<_Synopsis> createState() => _SynopsisState();
-}
-
-class _SynopsisState extends State<_Synopsis> {
-  bool _expanded = false;
-  static const int _trimLines = 5;
+  const SynopsisText({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 200),
-          firstChild: Text(
-            widget.text,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.textSecondary,
-              height: 1.6,
-            ),
-            maxLines: _trimLines,
-            overflow: TextOverflow.ellipsis,
-          ),
-          secondChild: Text(
-            widget.text,
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.textSecondary,
-              height: 1.6,
-            ),
-          ),
-          crossFadeState:
-              _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => setState(() => _expanded = !_expanded),
-          child: Text(_expanded ? 'Show less' : 'Read more'),
-        ),
-      ],
+    return Text(
+      text,
+      style: AppTextStyles.bodyLarge.copyWith(
+        color: AppColors.textSecondary,
+        height: 1.6,
+      ),
     );
   }
 }

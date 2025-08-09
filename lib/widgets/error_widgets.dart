@@ -132,11 +132,28 @@ class NoMoviesFoundWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EmptyStateWidget(
-      message: 'No movies found.\nTry adjusting your filters or search terms.',
-      actionText: 'Refresh',
-      onActionPressed: onRefresh,
-      icon: Icons.movie_outlined,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.movie_outlined,
+              size: 64,
+              color: AppColors.textLight,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No movies found.\nTry adjusting your filters or search terms.',
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
