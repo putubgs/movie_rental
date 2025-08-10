@@ -90,7 +90,6 @@ class MovieCardShimmer extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // Poster shimmer takes 3/5 of height
               Expanded(
                 flex: 3,
                 child: ClipRRect(
@@ -98,7 +97,6 @@ class MovieCardShimmer extends StatelessWidget {
                   child: ShimmerLoading(height: constraints.maxHeight * 0.6, borderRadius: 0),
                 ),
               ),
-              // Content shimmer fits remaining space
               Expanded(
                 flex: 2,
                 child: Padding(

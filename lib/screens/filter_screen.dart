@@ -125,7 +125,6 @@ class _FilterScreenState extends State<FilterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Genre Filter
                   FilterSection(
                     title: 'Genre',
                     child: Column(
@@ -153,7 +152,6 @@ class _FilterScreenState extends State<FilterScreen> {
                     ),
                   ),
 
-                  // Rating Filter
                   FilterSection(
                     title: 'Rating',
                     child: Column(
@@ -182,7 +180,6 @@ class _FilterScreenState extends State<FilterScreen> {
                     ),
                   ),
 
-                  // Year Filter
                   FilterSection(
                     title: 'Release Year',
                     child: Column(
@@ -214,7 +211,6 @@ class _FilterScreenState extends State<FilterScreen> {
             ),
           ),
 
-          // Apply Button
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

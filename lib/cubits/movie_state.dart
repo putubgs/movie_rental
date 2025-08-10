@@ -62,7 +62,7 @@ class MovieState extends Equatable {
   bool get hasError => status == MovieStatus.failure;
   bool get canLoadMore => !isLastPage && !isLoading && !isLoadingMore && totalPages > 0;
   
-  // Progress percentage for pagination
+  
   double get loadingProgress => totalPages > 0 ? currentPage / totalPages : 0.0;
 
   @override

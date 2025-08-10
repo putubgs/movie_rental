@@ -6,9 +6,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'cubits/auth_cubit.dart';
 import 'cubits/movie_cubit.dart';
 import 'cubits/rental_cubit.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   
   try {
     await dotenv.load(fileName: ".env");
@@ -28,26 +31,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     String apiKey = '';
     
-    // Check .env first
     if (dotenv.isInitialized && 
         (dotenv.env['TMDB_API_KEY'] ?? '').trim().isNotEmpty) {
       apiKey = dotenv.env['TMDB_API_KEY']!.trim();
-      print("✅ Using API key from .env file");
       DioApiClient.instance.initializeFromDotenv();
     } else {
-      // Fallback to compile-time environment
       apiKey = const String.fromEnvironment('TMDB_API_KEY', defaultValue: '');
-      print("⚠️  Using compile-time API key");
       DioApiClient.instance.initialize(apiKey);
     }
     
-    // Debug API key status
     if (apiKey.isEmpty) {
-      print("❌ CRITICAL: NO API KEY FOUND!");
-      print("Please create a .env file with TMDB_API_KEY=your_key");
-      print("Or run with: flutter run --dart-define=TMDB_API_KEY=your_key");
+      print("NO API KEY FOUND!");
     } else {
-      print("✅ API key loaded: ${apiKey.substring(0, 8)}...");
+      print("API key loaded: ${apiKey.substring(0, 8)}...");
     }
 
     return MultiBlocProvider(

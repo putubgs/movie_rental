@@ -185,7 +185,6 @@ class SearchTextField extends StatelessWidget {
         hintStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.textLight,
         ),
-        // Removed left search icon inside the input; external button handles search
         prefixIcon: null,
         suffixIcon: controller?.text.isNotEmpty == true
             ? IconButton(

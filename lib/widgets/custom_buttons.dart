@@ -117,7 +117,6 @@ enum ButtonType {
   text,
 }
 
-// Specialized buttons for common use cases
 class RentButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;

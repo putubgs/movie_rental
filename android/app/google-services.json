@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "253951054752",
+    "project_id": "movie-rental-871fa",
+    "storage_bucket": "movie-rental-871fa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:253951054752:android:9574dcc3cbd6e71fd34ac5",
+        "android_client_info": {
+          "package_name": "com.example.movie_rental"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "253951054752-51r59121pv4r096e5tlj3ktntdc2u7do.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCoafS_qJRGhRm8WmOgtMoeG3vw3THBblo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "253951054752-51r59121pv4r096e5tlj3ktntdc2u7do.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

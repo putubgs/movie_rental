@@ -65,7 +65,6 @@ class MovieDetailScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                  // Censor blur overlay for adult titles
                   if (isAdult)
                     Positioned.fill(
                       child: BackdropFilter(
@@ -219,7 +218,6 @@ class MovieDetailScreen extends StatelessWidget {
                     _buildDetailRow('Duration', _formatRuntime(runtime)),
                   if (originalLanguage != null && originalLanguage.isNotEmpty)
                     _buildDetailRow('Language', originalLanguage),
-                  // Cast (fetched on demand from /movie/{id}/credits)
                   if (movieId != null)
                     FutureBuilder<List<String>>(
                       future: _fetchTopCast(movieId),
@@ -259,7 +257,6 @@ class MovieDetailScreen extends StatelessWidget {
   }
 
   List<String> _extractGenres(Map<String, dynamic> movie) {
-    // If full genre objects present: [{'id':..,'name':..}, ...]
     if (movie['genres'] is List) {
       final List list = movie['genres'] as List;
       return list
@@ -268,7 +265,6 @@ class MovieDetailScreen extends StatelessWidget {
           .take(5)
           .toList();
     }
-    // If only genre_ids present, reuse the short mapping used in MovieCard
     if (movie['genre_ids'] is List) {
       final ids = (movie['genre_ids'] as List).whereType<int>();
       const genreMap = {
@@ -348,7 +344,6 @@ class MovieDetailScreen extends StatelessWidget {
   }
 
   String _getSynopsis(String title) {
-    // Deprecated dummy synopsis; kept as fallback only
     return 'No overview available.';
   }
 } 

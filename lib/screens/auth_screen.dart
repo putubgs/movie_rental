@@ -3,6 +3,8 @@ import '../constants/app_colors.dart';
 import '../constants/text_styles.dart';
 import '../widgets/custom_buttons.dart';
 import 'home_shell.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubits/auth_cubit.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -107,7 +109,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
 
-                        // Animated form switch
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 250),
                           switchInCurve: Curves.easeOut,
@@ -165,15 +166,17 @@ class _LoginFormState extends State<LoginForm> {
         _isLoading = true;
         _errorMessage = null;
       });
-
-      // TODO: Implement login logic with Cubit
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            // TODO: Navigate to home screen on success
-          });
+      context
+          .read<AuthCubit>()
+          .loginWithEmail(_emailController.text.trim(), _passwordController.text)
+          .then((_) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        final state = context.read<AuthCubit>().state;
+        if (state.status == AuthStatus.authenticated) {
           widget.onSuccess?.call();
+        } else if (state.status == AuthStatus.failure) {
+          setState(() => _errorMessage = state.errorMessage ?? 'Login failed');
         }
       });
     }
@@ -211,7 +214,6 @@ class _LoginFormState extends State<LoginForm> {
 
           const SizedBox(height: 16),
 
-          // Email Field
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -237,7 +239,6 @@ class _LoginFormState extends State<LoginForm> {
 
           const SizedBox(height: 16),
 
-          // Password Field
           TextFormField(
             controller: _passwordController,
             obscureText: true,
@@ -262,7 +263,6 @@ class _LoginFormState extends State<LoginForm> {
 
           const SizedBox(height: 24),
 
-          // Login Button
           CustomButton(
             text: 'Login',
             onPressed: _handleLogin,
@@ -272,7 +272,6 @@ class _LoginFormState extends State<LoginForm> {
 
           const SizedBox(height: 16),
 
-          // Or continue with
           Row(
             children: [
               const Expanded(child: Divider()),
@@ -289,13 +288,19 @@ class _LoginFormState extends State<LoginForm> {
 
           const SizedBox(height: 12),
 
-          // Google sign-in (UI only)
-          CustomButton(
-            text: 'Continue with Google',
+          OutlinedButton.icon(
             onPressed: () {},
-            isLoading: false,
-            type: ButtonType.outline,
-            icon: Icons.login,
+            icon: const Icon(Icons.login, color: AppColors.primary),
+            label: Text(
+              'Continue with Google',
+              style: AppTextStyles.buttonMedium.copyWith(color: AppColors.primary),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary),
+              foregroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
           ),
         ],
       ),
@@ -332,15 +337,17 @@ class _RegisterFormState extends State<RegisterForm> {
         _isLoading = true;
         _errorMessage = null;
       });
-
-      // TODO: Implement register logic with Cubit
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            // TODO: Navigate to home screen on success
-          });
+      context
+          .read<AuthCubit>()
+          .registerWithEmail(_emailController.text.trim(), _passwordController.text)
+          .then((_) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        final state = context.read<AuthCubit>().state;
+        if (state.status == AuthStatus.authenticated) {
           widget.onSuccess?.call();
+        } else if (state.status == AuthStatus.failure) {
+          setState(() => _errorMessage = state.errorMessage ?? 'Registration failed');
         }
       });
     } else if (!_agreeToTerms) {
@@ -382,7 +389,6 @@ class _RegisterFormState extends State<RegisterForm> {
 
           const SizedBox(height: 16),
 
-          // Email Field
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -408,7 +414,6 @@ class _RegisterFormState extends State<RegisterForm> {
 
           const SizedBox(height: 16),
 
-          // Password Field
           TextFormField(
             controller: _passwordController,
             obscureText: true,
@@ -437,7 +442,6 @@ class _RegisterFormState extends State<RegisterForm> {
 
           const SizedBox(height: 16),
 
-          // Terms Checkbox
           Row(
             children: [
               Checkbox(
@@ -460,7 +464,6 @@ class _RegisterFormState extends State<RegisterForm> {
 
           const SizedBox(height: 24),
 
-          // Register Button
           CustomButton(
             text: 'Create Account',
             onPressed: _handleRegister,

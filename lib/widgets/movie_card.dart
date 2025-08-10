@@ -58,7 +58,6 @@ class MovieCard extends StatelessWidget {
     this.movieId,
   });
 
-  /// Factory constructor for TMDB API data
   factory MovieCard.fromTmdbData({
     required Map<String, dynamic> movieData,
     VoidCallback? onTap,
@@ -79,16 +78,13 @@ class MovieCard extends StatelessWidget {
     );
   }
 
-  /// Build full poster URL from TMDB path
   static String _buildPosterUrl(dynamic posterPath) {
     if (posterPath == null || posterPath.toString().isEmpty) {
       return '';
     }
-    // TMDB image base URL with w342 size for movie cards
     return 'https://image.tmdb.org/t/p/w342$posterPath';
   }
 
-  /// Map genre IDs to genre names (simplified mapping)
   static List<String> _mapGenreIds(dynamic genreIds) {
     if (genreIds is! List) return [];
     
@@ -117,7 +113,7 @@ class MovieCard extends StatelessWidget {
     return genreIds
         .where((id) => genreMap.containsKey(id))
         .map<String>((id) => genreMap[id]!)
-        .take(3) // Limit to 3 genres max
+        .take(3)
         .toList();
   }
 
@@ -149,7 +145,6 @@ class MovieCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Poster with adult badge and rating overlay
             Expanded(
               flex: 3,
               child: Stack(
@@ -178,7 +173,7 @@ class MovieCard extends StatelessWidget {
                                 )),
                     ),
                   ),
-                  // Adult censor overlay (blur + scrim)
+
                   if (isAdult)
                     Positioned.fill(
                       child: ClipRRect(
@@ -210,7 +205,6 @@ class MovieCard extends StatelessWidget {
                       ),
                     ),
                   
-                  // Rating overlay (top-left)
                   if (showRating && rating > 0)
                     Positioned(
                       top: 8,
@@ -246,12 +240,10 @@ class MovieCard extends StatelessWidget {
                       ),
                     ),
                   
-                  // Note: badge moved to white info area to avoid overflow on small thumbs
                 ],
               ),
             ),
             
-            // Movie info
             Expanded(
               flex: 2,
               child: Padding(
@@ -260,7 +252,6 @@ class MovieCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Title row with optional Adult badge on the right (in white area)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -306,7 +297,6 @@ class MovieCard extends StatelessWidget {
                       ],
                     ),
                     
-                    // Genres
                     if (genres.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -351,7 +341,6 @@ class MovieCardHorizontal extends StatelessWidget {
     this.movieId,
   });
 
-  /// Factory constructor for TMDB API data
   factory MovieCardHorizontal.fromTmdbData({
     required Map<String, dynamic> movieData,
     VoidCallback? onTap,
@@ -398,7 +387,6 @@ class MovieCardHorizontal extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Poster
             Stack(
               children: [
                 ClipRRect(
@@ -439,7 +427,6 @@ class MovieCardHorizontal extends StatelessWidget {
                           ),
                   ),
                 ),
-                    // Adult censor overlay (blur + scrim) — compact label for horizontal card
                     if (isAdult)
                       Positioned.fill(
                         child: ClipRRect(
@@ -470,11 +457,9 @@ class MovieCardHorizontal extends StatelessWidget {
                           ),
                         ),
                       ),
-                // Note: badge moved to white info area below for horizontal card
               ],
             ),
             
-            // Movie info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -482,7 +467,6 @@ class MovieCardHorizontal extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Title and year with optional Adult badge aligned to end
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -528,11 +512,9 @@ class MovieCardHorizontal extends StatelessWidget {
                       ],
                     ),
                     
-                    // Rating and genres
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Rating
                         Row(
                           children: [
                             Icon(
@@ -550,7 +532,6 @@ class MovieCardHorizontal extends StatelessWidget {
                         
                         const SizedBox(height: 4),
                         
-                        // Genres
                         if (genres.isNotEmpty)
                           Text(
                             genres.take(3).join(' • '),
@@ -571,7 +552,6 @@ class MovieCardHorizontal extends StatelessWidget {
   }
 }
 
-/// Loading card for pagination states
 class MovieCardLoading extends StatelessWidget {
   const MovieCardLoading({super.key});
 
@@ -634,7 +614,6 @@ class MovieCardLoading extends StatelessWidget {
   }
 }
 
-/// Load more button widget for pagination
 class LoadMoreButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;

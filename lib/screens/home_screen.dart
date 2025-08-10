@@ -28,7 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Ensure movies are loaded when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final movieCubit = context.read<MovieCubit>();
       if (movieCubit.state.movies.isEmpty && movieCubit.state.status == MovieStatus.initial) {
@@ -44,8 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Map<String, dynamic>> _getFilteredMovies(List<Map<String, dynamic>> movies) {
-    // All filtering is handled server-side by the cubit (search, genre, rating, year).
-    // Return movies as-is to avoid double-filtering while typing.
     return movies;
   }
 
@@ -70,7 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
               _selectedRating = rating;
               _selectedYear = year;
             });
-            // Apply filters to cubit
             context.read<MovieCubit>().applyFilters(
               genre: genre,
               rating: rating,
@@ -89,7 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedYear = null;
       _searchController.clear();
     });
-    // Clear filters in cubit
     final cubit = context.read<MovieCubit>();
     cubit.clearFilters();
   }
@@ -129,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: SearchTextField(
                     controller: _searchController,
-                    // No live filtering while typing; wait for submit (Enter) instead
                     onChanged: null,
                     onClear: () {
                       setState(() {
@@ -241,16 +235,13 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
 
-          // Movie List
           Expanded(
             child: BlocBuilder<MovieCubit, MovieState>(
               builder: (context, state) {
-                // Loading state for initial load
                 if (state.status == MovieStatus.loading && state.movies.isEmpty) {
                   return const MovieListShimmer();
                 }
 
-                // Error state
                 if (state.status == MovieStatus.failure && state.movies.isEmpty) {
                   return ErrorMessage(
                     message: state.errorMessage ?? 'Failed to load movies. Check your TMDB key or network.',
@@ -259,14 +250,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                // Empty state
                 if (state.movies.isEmpty) {
                   return NoMoviesFoundWidget(
                     onRefresh: () => context.read<MovieCubit>().fetchMovies(),
                   );
                 }
 
-                // Filter movies based on local filters (search, etc.)
                 final filteredMovies = _getFilteredMovies(state.movies);
 
                 if (filteredMovies.isEmpty) {
@@ -332,7 +321,6 @@ class _HomeScreenState extends State<HomeScreen> {
           itemCount: movies.length + (state.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == movies.length) {
-              // Show loading placeholder as a grid item while fetching next page
               return const MovieCardLoading();
             }
 

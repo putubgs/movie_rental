@@ -4,13 +4,17 @@ import '../constants/app_colors.dart';
 import '../constants/text_styles.dart';
 import '../widgets/custom_buttons.dart';
 import '../widgets/error_widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubits/rental_cubit.dart';
 
 class RentalFormScreen extends StatefulWidget {
   final Map<String, dynamic> movie;
+  final String? rentalId;
 
   const RentalFormScreen({
     super.key,
     required this.movie,
+    this.rentalId,
   });
 
   @override
@@ -30,6 +34,16 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String title = (widget.movie['title'] ?? widget.movie['name'] ?? '').toString();
+    final String posterUrl = (() {
+      final explicit = widget.movie['posterUrl'];
+      if (explicit is String && explicit.isNotEmpty) return explicit;
+      final p = widget.movie['poster_path'];
+      if (p is String && p.isNotEmpty) return 'https://image.tmdb.org/t/p/w342$p';
+      return '';
+    })();
+    final double rating = ((widget.movie['rating'] ?? widget.movie['vote_average']) as num?)?.toDouble() ?? 0.0;
+    final int movieId = (widget.movie['id'] as num?)?.toInt() ?? 0;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -57,11 +71,11 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: SizedBox(
+                      child: SizedBox(
                       width: 80,
                       height: 120,
                       child: CachedNetworkImage(
-                        imageUrl: widget.movie['posterUrl'],
+                        imageUrl: posterUrl,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: AppColors.background,
@@ -88,7 +102,7 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.movie['title'],
+                          title,
                           style: AppTextStyles.h4,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -103,7 +117,7 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${widget.movie['rating']}/10',
+                              '${rating.toStringAsFixed(1)}/10',
                               style: AppTextStyles.movieRating,
                             ),
                           ],
@@ -328,23 +342,41 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
       _errorMessage = null;
     });
 
-    // TODO: Implement order confirmation with Cubit
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // TODO: Show success message and navigate back
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Movie rented successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        
-        Navigator.of(context).pop();
+    final String title = (widget.movie['title'] ?? widget.movie['name'] ?? '').toString();
+    final String? posterPath = (widget.movie['poster_path'] as String?);
+    final int movieId = (widget.movie['id'] as num?)?.toInt() ?? 0;
+
+    final cubit = context.read<RentalCubit>();
+    final Future<void> op = widget.rentalId == null
+        ? cubit.createRental(
+            movieId: movieId,
+            title: title,
+            posterPath: posterPath,
+            days: _selectedDuration,
+            pricePerDay: _pricePerDay,
+          )
+        : cubit.renewRental(
+            rentalId: widget.rentalId!,
+            days: _selectedDuration,
+            pricePerDay: _pricePerDay,
+          );
+
+    op
+        .then((_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final st = context.read<RentalCubit>().state;
+      if (st.status == RentalStatus.failure) {
+        setState(() => _errorMessage = st.errorMessage ?? 'Failed to create rental');
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Movie rented successfully!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.of(context).pop();
     });
   }
 } 

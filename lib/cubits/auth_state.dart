@@ -5,8 +5,9 @@ enum AuthStatus { initial, loading, authenticated, unauthenticated, failure }
 class AuthState extends Equatable {
   final AuthStatus status;
   final String? errorMessage;
-
   const AuthState({required this.status, this.errorMessage});
+
+  
 
   const AuthState.initial() : this(status: AuthStatus.initial);
   const AuthState.loading() : this(status: AuthStatus.loading);
@@ -16,7 +17,7 @@ class AuthState extends Equatable {
   AuthState copyWith({AuthStatus? status, String? errorMessage}) {
     return AuthState(
       status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: errorMessage,
     );
   }
 
